@@ -4,9 +4,14 @@ import 'data/sample_connections.dart';
 import 'data/sample_profile.dart';
 import 'screens/app_shell.dart';
 import 'services/nearby/ble_nearby_service.dart';
+import 'services/nearby/demo_nearby_service.dart';
 import 'state/app_state.dart';
 import 'state/nearby_controller.dart';
 import 'theme/tokens.dart';
+
+/// `flutter run --dart-define=NEARBY_DEMO=true` swaps Bluetooth for pretend
+/// people, so Nearby and the Card Room work in a browser or simulator.
+const nearbyDemo = bool.fromEnvironment('NEARBY_DEMO');
 
 void main() {
   runApp(const DekadApp());
@@ -26,7 +31,7 @@ class _DekadAppState extends State<DekadApp> {
   );
   late final _nearby = NearbyController(
     state: _state,
-    service: BleNearbyService(),
+    service: nearbyDemo ? DemoNearbyService() : BleNearbyService(),
   );
 
   @override

@@ -279,7 +279,10 @@ class _Radar extends StatelessWidget {
                   // Stronger signal sits closer to the centre.
                   final strength = ((p.rssi + 95) / 45).clamp(0.0, 1.0);
                   final r = 105 - 55 * strength;
-                  final a = -math.pi / 2 + i * (2 * math.pi / 8) + 0.4;
+                  final a =
+                      -math.pi / 2 +
+                      i * (2 * math.pi / math.max(people.length, 3)) +
+                      0.4;
                   return AnimatedPositioned(
                     duration: const Duration(milliseconds: 400),
                     left: c.dx + r * math.cos(a) - 24,

@@ -40,6 +40,7 @@ flutter pub get
 flutter run                                         # backend at 10.0.2.2:8000 (Android emulator)
 flutter run --dart-define=API_BASE_URL=https://<your-app>.onrender.com
 flutter test
+flutter run -d chrome --dart-define=NEARBY_DEMO=true  # try Nearby + Card Room without Bluetooth
 ```
 
 ## Deploy
