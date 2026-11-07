@@ -5,10 +5,13 @@ import 'package:dekad/screens/app_shell.dart';
 import 'package:dekad/screens/home_screen.dart';
 import 'package:dekad/services/exchange_service.dart';
 import 'package:dekad/state/app_state.dart';
+import 'package:dekad/state/nearby_controller.dart';
 import 'package:dekad/theme/tokens.dart';
 import 'package:dekad/widgets/dekad_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'fake_nearby_service.dart';
 
 void main() {
   testWidgets('switches between professional and personal profiles', (
@@ -32,11 +35,13 @@ void main() {
       profile: sampleProfile,
       connections: sampleConnections(),
     );
+    final nearby = NearbyController(state: state, service: FakeNearbyService());
+    addTearDown(nearby.dispose);
     addTearDown(state.dispose);
     await tester.pumpWidget(
       MaterialApp(
         theme: buildDekadTheme(),
-        home: AppShell(state: state),
+        home: AppShell(state: state, nearby: nearby),
       ),
     );
 

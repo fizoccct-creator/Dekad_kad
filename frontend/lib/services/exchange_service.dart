@@ -31,6 +31,18 @@ class ExchangeService {
     }
   }
 
+  /// The profile mode a payload was shared in (professional if unknown).
+  static ProfileMode parseMode(String payload) {
+    try {
+      final json = jsonDecode(payload) as Map<String, dynamic>;
+      return json['mode'] == ProfileMode.personal.name
+          ? ProfileMode.personal
+          : ProfileMode.professional;
+    } catch (_) {
+      return ProfileMode.professional;
+    }
+  }
+
   static Future<bool> isNfcAvailable() async =>
       await NfcManager.instance.checkAvailability() == NfcAvailability.enabled;
 

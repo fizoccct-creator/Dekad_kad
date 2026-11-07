@@ -10,7 +10,13 @@ import 'rewrite_bio_screen.dart';
 import 'share_qr_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.profile, this.api, this.state});
+  const HomeScreen({
+    super.key,
+    required this.profile,
+    this.api,
+    this.state,
+    this.onOpenNearby,
+  });
 
   final UserProfile profile;
   final ApiService? api;
@@ -18,6 +24,9 @@ class HomeScreen extends StatefulWidget {
   /// Shared state from the app shell. When null (e.g. in tests) the screen
   /// keeps its own.
   final AppState? state;
+
+  /// Opens the Nearby screen; hidden when null.
+  final VoidCallback? onOpenNearby;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -170,6 +179,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
+                if (widget.onOpenNearby != null) ...[
+                  const SizedBox(height: 20),
+                  _NearbyEntry(mode: mode, onTap: widget.onOpenNearby!),
+                ],
               ],
             ),
           ),
@@ -306,6 +319,58 @@ class _ProfileCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _NearbyEntry extends StatelessWidget {
+  const _NearbyEntry({required this.mode, required this.onTap});
+
+  final ProfileMode mode;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = DekadColors.accent(mode);
+    return Material(
+      color: DekadColors.surface,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: DekadColors.accentSoft(mode),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.bluetooth, color: accent),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('People nearby', style: DekadText.bodyStrong),
+                    Text(
+                      'Find other Dekad users around you and connect',
+                      style: DekadText.caption.copyWith(
+                        color: DekadColors.ink600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: accent),
+            ],
+          ),
+        ),
       ),
     );
   }

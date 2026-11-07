@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Dekad uses Bluetooth to find other Dekad users nearby when you turn on Nearby.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Dekad uses the camera to scan other people's profile QR codes.</string>
 	<key>CFBundleDevelopmentRegion</key>

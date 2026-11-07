@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
 import '../services/api_service.dart';
 import '../state/app_state.dart';
+import '../state/nearby_controller.dart';
 import '../theme/tokens.dart';
 import '../widgets/dekad_widgets.dart';
 import 'event_badge_screen.dart';
@@ -14,6 +15,8 @@ class MeScreen extends StatelessWidget {
     required this.state,
     required this.api,
     required this.onOpenProfile,
+    required this.nearby,
+    required this.onOpenNearby,
   });
 
   final AppState state;
@@ -21,11 +24,13 @@ class MeScreen extends StatelessWidget {
 
   /// Switches to [ProfileMode] and shows it on Home.
   final ValueChanged<ProfileMode> onOpenProfile;
+  final NearbyController nearby;
+  final VoidCallback onOpenNearby;
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: state,
+      listenable: Listenable.merge([state, nearby]),
       builder: (context, _) {
         final pro = state.profile.professional;
         final per = state.profile.personal;
@@ -64,6 +69,20 @@ class MeScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 _Group(
                   children: [
+                    _Row(
+                      icon: Icons.bluetooth,
+                      iconColor: DekadColors.accent(state.mode),
+                      iconBackground: DekadColors.accentSoft(state.mode),
+                      title: 'Be visible nearby',
+                      subtitle: 'Let people around you find you',
+                      onTap: onOpenNearby,
+                      trailing: Switch(
+                        value:
+                            nearby.isOn || nearby.phase == NearbyPhase.starting,
+                        activeTrackColor: DekadColors.accent(state.mode),
+                        onChanged: (v) => v ? onOpenNearby() : nearby.stop(),
+                      ),
+                    ),
                     _Row(
                       icon: Icons.badge_outlined,
                       iconColor: DekadColors.ai,

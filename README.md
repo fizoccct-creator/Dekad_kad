@@ -54,6 +54,10 @@ Design tokens live in `frontend/lib/theme/tokens.dart`.
 - Working: profile switching, QR code of the active profile, QR scanning that
   saves a connection, contacts list with search and filters, contact notes,
   AI bio rewrite, AI notes summary, AI follow-up draft, AI event badge.
+- Nearby (needs testing on two real phones): with "Be visible nearby" on,
+  Dekad phones find each other over Bluetooth LE and can send a connect
+  request; the other person accepts before either profile is saved. Only
+  works while the app is open. See `lib/services/nearby/`.
 - Placeholder data: profile and contacts are sample data held in memory
   (`lib/data/`), so changes reset on restart.
 - Not built yet: NFC exchange (screen is ready, the session isn't), onboarding
