@@ -128,7 +128,8 @@ void main() {
 
         final reply = await c.connect(c.people.single);
 
-        expect(reply, NearbyReply.accepted);
+        expect(reply?.reply, NearbyReply.accepted);
+        expect(reply?.profile?.name, 'Marcus Lee');
         expect(
           ExchangeService.parsePayload(service.sentPayloads.single)?.name,
           'Alex J.',

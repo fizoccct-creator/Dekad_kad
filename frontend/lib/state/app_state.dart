@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../models/card_room.dart';
 import '../models/connection.dart';
 import '../models/user_profile.dart';
 import '../services/api_service.dart' show BadgeText;
@@ -16,6 +17,9 @@ class AppState extends ChangeNotifier {
   final List<Connection> _connections;
   bool _nfcEnabled = true;
   BadgeText? _badge;
+  int _followUps = 0;
+  CardSkin _skin = CardSkin.classic;
+  SendMove _move = SendMove.toss;
   String _badgeEvent = '';
 
   UserProfile get profile => _profile;
@@ -23,6 +27,36 @@ class AppState extends ChangeNotifier {
   ProfileData get current => _profile.forMode(_mode);
   bool get nfcEnabled => _nfcEnabled;
   BadgeText? get badge => _badge;
+
+  DekadStats get stats => DekadStats.from(_connections, _followUps);
+
+  /// The card skin and send move for the Card Room. Falls back to the free
+  /// ones if a choice is no longer unlocked.
+  CardStyle get cardStyle {
+    final s = stats;
+    return CardStyle(
+      skin: skinUnlocked(_skin, s) ? _skin : CardSkin.classic,
+      move: moveUnlocked(_move, s) ? _move : SendMove.toss,
+    );
+  }
+
+  set cardSkin(CardSkin value) {
+    if (!skinUnlocked(value, stats)) return;
+    _skin = value;
+    notifyListeners();
+  }
+
+  set sendMove(SendMove value) {
+    if (!moveUnlocked(value, stats)) return;
+    _move = value;
+    notifyListeners();
+  }
+
+  void recordFollowUp() {
+    _followUps++;
+    notifyListeners();
+  }
+
   String get badgeEvent => _badgeEvent;
 
   /// Newest first.

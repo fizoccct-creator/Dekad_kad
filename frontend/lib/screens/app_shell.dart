@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../state/app_state.dart';
 import '../state/nearby_controller.dart';
 import '../theme/tokens.dart';
+import 'card_room_screen.dart';
 import 'contacts_screen.dart';
 import 'home_screen.dart';
 import 'me_screen.dart';
@@ -56,23 +57,24 @@ class _AppShellState extends State<AppShell> {
     if (_showingRequest || _pending.isEmpty || !mounted) return;
     _showingRequest = true;
     final r = _pending.removeAt(0);
-    final state = widget.state;
-    final accept = await showModalBottomSheet<bool>(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: DekadColors.canvas,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      builder: (_) => NearbyRequestSheet(
-        request: r,
-        myMode: state.mode,
-        myName: state.current.name,
-      ),
-    );
-    await widget.nearby.respond(r, accept: accept ?? false);
-    if (mounted && (accept ?? false)) {
+    var answered = false;
+    final accepted = await Navigator.of(context, rootNavigator: true)
+        .push<bool>(
+          MaterialPageRoute<bool>(
+            fullscreenDialog: true,
+            builder: (_) => CardArrivalScreen(
+              request: r,
+              state: widget.state,
+              onAnswer: (accept) {
+                answered = true;
+                return widget.nearby.respond(r, accept: accept);
+              },
+            ),
+          ),
+        );
+    // Closed without answering: let them know it's a no for now.
+    if (!answered) await widget.nearby.respond(r, accept: false);
+    if (mounted && (accepted ?? false)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${r.profile.name} saved to your connections')),
       );

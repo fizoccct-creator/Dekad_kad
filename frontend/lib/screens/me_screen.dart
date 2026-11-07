@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../models/card_room.dart';
 import '../models/user_profile.dart';
 import '../services/api_service.dart';
 import '../state/app_state.dart';
 import '../state/nearby_controller.dart';
 import '../theme/tokens.dart';
 import '../widgets/dekad_widgets.dart';
+import 'badges_screen.dart';
 import 'event_badge_screen.dart';
 
 /// Profiles and settings (Figma: "Me — Profiles & settings").
@@ -81,6 +83,22 @@ class MeScreen extends StatelessWidget {
                             nearby.isOn || nearby.phase == NearbyPhase.starting,
                         activeTrackColor: DekadColors.accent(state.mode),
                         onChanged: (v) => v ? onOpenNearby() : nearby.stop(),
+                      ),
+                    ),
+                    _Row(
+                      icon: Icons.military_tech,
+                      iconColor: const Color(0xFFB8860B),
+                      iconBackground: const Color(0xFFFFF4D6),
+                      title: 'Badges',
+                      subtitle: () {
+                        final s = state.stats;
+                        final n = badges.where((b) => b.earned(s)).length;
+                        return '$n of ${badges.length} earned · unlock card moves and skins';
+                      }(),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => BadgesScreen(state: state),
+                        ),
                       ),
                     ),
                     _Row(

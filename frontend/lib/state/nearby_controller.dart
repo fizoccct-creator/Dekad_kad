@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/card_room.dart';
 import '../models/connection.dart';
 import '../models/user_profile.dart';
 import '../services/exchange_service.dart';
@@ -25,11 +26,33 @@ class NearbyPerson {
 
 /// An incoming request with the requester's profile already parsed.
 class IncomingNearbyRequest {
-  const IncomingNearbyRequest(this.request, this.profile, this.mode);
+  const IncomingNearbyRequest(
+    this.request,
+    this.profile,
+    this.mode, [
+    this.style = const CardStyle(),
+  ]);
 
   final NearbyRequest request;
   final ProfileData profile;
   final ProfileMode mode;
+
+  /// The card skin and move they sent it with.
+  final CardStyle style;
+}
+
+/// How an outgoing connect ended. [profile] and [style] are theirs, set
+/// when they accepted.
+class NearbyOutcome {
+  const NearbyOutcome(
+    this.reply, {
+    this.profile,
+    this.style = const CardStyle(),
+  });
+
+  final NearbyReply reply;
+  final ProfileData? profile;
+  final CardStyle style;
 }
 
 /// Owns the Nearby session: who's around, outgoing and incoming requests.
@@ -151,34 +174,47 @@ class NearbyController extends ChangeNotifier {
   }
 
   /// Sends our active profile to [person] and saves them if they accept.
-  Future<NearbyReply?> connect(NearbyPerson person) async {
+  /// Sends our active profile (with our Card Room style) to [person] and
+  /// saves them if they accept. Null if a request is already in flight.
+  Future<NearbyOutcome?> connect(NearbyPerson person) async {
     if (person.status == PersonStatus.requesting) return null;
     person.status = PersonStatus.requesting;
     notifyListeners();
-    NearbyReply? reply;
+    var outcome = const NearbyOutcome(NearbyReply.noAnswer);
     try {
       final result = await service.connect(
         person.id,
-        ExchangeService.buildPayload(state.current, state.mode),
+        ExchangeService.buildPayload(
+          state.current,
+          state.mode,
+          style: state.cardStyle,
+        ),
       );
-      reply = result.reply;
-      final profile = result.payload == null
+      final payload = result.payload;
+      final profile = payload == null
           ? null
-          : ExchangeService.parsePayload(result.payload!);
-      if (reply == NearbyReply.accepted && profile != null) {
+          : ExchangeService.parsePayload(payload);
+      if (result.reply == NearbyReply.accepted && profile != null) {
         _save(profile);
         person.status = PersonStatus.saved;
+        outcome = NearbyOutcome(
+          NearbyReply.accepted,
+          profile: profile,
+          style: ExchangeService.parseStyle(payload!),
+        );
       } else {
-        person.status = reply == NearbyReply.declined
-            ? PersonStatus.declined
-            : PersonStatus.failed;
+        final declined = result.reply == NearbyReply.declined;
+        person.status = declined ? PersonStatus.declined : PersonStatus.failed;
+        outcome = NearbyOutcome(
+          declined ? NearbyReply.declined : NearbyReply.noAnswer,
+        );
       }
     } catch (e) {
       debugPrint('Nearby: connect to ${person.id} failed: $e');
       person.status = PersonStatus.failed;
     }
     notifyListeners();
-    return reply;
+    return outcome;
   }
 
   void _onRequest(NearbyRequest r) {
@@ -188,7 +224,12 @@ class NearbyController extends ChangeNotifier {
       return;
     }
     _incoming.add(
-      IncomingNearbyRequest(r, profile, ExchangeService.parseMode(r.payload)),
+      IncomingNearbyRequest(
+        r,
+        profile,
+        ExchangeService.parseMode(r.payload),
+        ExchangeService.parseStyle(r.payload),
+      ),
     );
   }
 
@@ -204,7 +245,11 @@ class NearbyController extends ChangeNotifier {
         incoming.request,
         accept: accept,
         payload: accept
-            ? ExchangeService.buildPayload(state.current, state.mode)
+            ? ExchangeService.buildPayload(
+                state.current,
+                state.mode,
+                style: state.cardStyle,
+              )
             : null,
       );
     } catch (e) {

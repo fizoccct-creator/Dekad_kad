@@ -8,6 +8,7 @@ import '../services/nearby/nearby_service.dart';
 import '../state/nearby_controller.dart';
 import '../theme/tokens.dart';
 import '../widgets/dekad_widgets.dart';
+import 'card_room_screen.dart';
 
 /// Dekad users around you (Figma: "Nearby — People around you").
 /// Opening it turns on "Be visible nearby".
@@ -41,16 +42,12 @@ class _NearbyScreenState extends State<NearbyScreen>
     super.dispose();
   }
 
-  Future<void> _connect(NearbyPerson p) async {
-    final reply = await _c.connect(p);
-    if (!mounted || reply == null) return;
-    final name = p.card!.name.split(' ').first;
-    showSnack(context, switch (reply) {
-      NearbyReply.accepted => 'Connected with $name',
-      NearbyReply.declined => '$name said not now',
-      NearbyReply.noAnswer => '$name didn’t answer',
-    });
-  }
+  void _connect(NearbyPerson p) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => CardRoomScreen(controller: _c, person: p),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -477,142 +474,6 @@ class _Pill extends StatelessWidget {
           ],
           Text(label, style: DekadText.label.copyWith(color: color)),
         ],
-      ),
-    );
-  }
-}
-
-/// "Marcus wants to connect" (Figma: "Nearby — Incoming request").
-/// Pops true to accept.
-class NearbyRequestSheet extends StatelessWidget {
-  const NearbyRequestSheet({
-    super.key,
-    required this.request,
-    required this.myMode,
-    required this.myName,
-  });
-
-  final IncomingNearbyRequest request;
-  final ProfileMode myMode;
-  final String myName;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = request.profile;
-    final first = p.name.split(' ').first;
-    final theirMode = request.mode.name;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 5,
-              decoration: BoxDecoration(
-                color: DekadColors.ink200,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DekadAvatar(name: p.name, mode: request.mode),
-                Container(
-                  width: 36,
-                  height: 36,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: const BoxDecoration(
-                    color: DekadColors.surface,
-                    shape: BoxShape.circle,
-                    boxShadow: raisedShadow,
-                  ),
-                  child: Icon(
-                    Icons.bluetooth,
-                    size: 18,
-                    color: DekadColors.accent(myMode),
-                  ),
-                ),
-                DekadAvatar(name: myName, mode: myMode),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '$first wants to connect',
-              textAlign: TextAlign.center,
-              style: DekadText.h1,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Nearby, and sent you their $theirMode profile.',
-              textAlign: TextAlign.center,
-              style: DekadText.label.copyWith(color: DekadColors.ink400),
-            ),
-            const SizedBox(height: 16),
-            DekadCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Overline(theirMode, color: DekadColors.accent(request.mode)),
-                  const SizedBox(height: 6),
-                  Text(p.name, style: DekadText.h2),
-                  Text(
-                    [p.role, ?p.company].join(' · '),
-                    style: DekadText.label.copyWith(color: DekadColors.ink600),
-                  ),
-                  if (p.bio.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      p.bio,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                      style: DekadText.body.copyWith(color: DekadColors.ink600),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: DekadColors.accentSoft(myMode),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                'If you accept, $first gets your ${myMode.name} profile.',
-                style: DekadText.caption.copyWith(
-                  color: DekadColors.accent(myMode),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: PillButton(
-                    label: 'Not now',
-                    variant: PillVariant.secondary,
-                    onPressed: () => Navigator.of(context).pop(false),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: PillButton(
-                    label: 'Accept',
-                    icon: Icons.check,
-                    accent: DekadColors.accent(myMode),
-                    onPressed: () => Navigator.of(context).pop(true),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }

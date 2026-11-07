@@ -58,6 +58,11 @@ Design tokens live in `frontend/lib/theme/tokens.dart`.
   Dekad phones find each other over Bluetooth LE and can send a connect
   request; the other person accepts before either profile is saved. Only
   works while the app is open. See `lib/services/nearby/`.
+- Card Room: connecting over Nearby opens a game-like room where you turn
+  your card in 3D (drag, double-tap to spin) and swipe up to send it. The
+  other person sees it fly in with your move. Badges (earned from your
+  activity) unlock send moves (Flip, Spin, Comet, Supernova) and card skins
+  (Midnight, Aurora, Holo, Gold). Tune them in `lib/models/card_room.dart`.
 - Placeholder data: profile and contacts are sample data held in memory
   (`lib/data/`), so changes reset on restart.
 - Not built yet: NFC exchange (screen is ready, the session isn't), onboarding

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:nfc_manager/nfc_manager.dart';
 
+import '../models/card_room.dart';
 import '../models/user_profile.dart';
 
 /// Builds and reads the payloads people swap when they connect.
@@ -12,13 +13,27 @@ class ExchangeService {
   static const _payloadType = 'dekad.profile';
   static const _payloadVersion = 1;
 
-  static String buildPayload(ProfileData profile, ProfileMode mode) =>
-      jsonEncode({
-        'type': _payloadType,
-        'v': _payloadVersion,
-        'mode': mode.name,
-        'profile': profile.toJson(),
-      });
+  /// [style] is only sent in the Card Room; QR codes stay small without it.
+  static String buildPayload(
+    ProfileData profile,
+    ProfileMode mode, {
+    CardStyle? style,
+  }) => jsonEncode({
+    'type': _payloadType,
+    'v': _payloadVersion,
+    'mode': mode.name,
+    'profile': profile.toJson(),
+    if (style != null) 'card': style.toJson(),
+  });
+
+  /// The sender's Card Room style (classic toss if none).
+  static CardStyle parseStyle(String payload) {
+    try {
+      return CardStyle.fromJson((jsonDecode(payload) as Map)['card']);
+    } catch (_) {
+      return const CardStyle();
+    }
+  }
 
   /// Returns null if [payload] is not a Dekad profile.
   static ProfileData? parsePayload(String payload) {

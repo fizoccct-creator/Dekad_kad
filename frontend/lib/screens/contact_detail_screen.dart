@@ -82,6 +82,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         context_,
         c.timestamp,
       );
+      widget.state.recordFollowUp();
       if (mounted) setState(() => _followUp = s);
     } catch (e) {
       if (mounted) showSnack(context, 'Could not suggest a follow-up: $e');
