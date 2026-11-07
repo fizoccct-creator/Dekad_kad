@@ -23,6 +23,19 @@ class Connection {
     required this.tags,
   });
 
+  Connection copyWith({String? notes, List<String>? tags}) => Connection(
+    connectionId: connectionId,
+    userId: userId,
+    displayName: displayName,
+    role: role,
+    photoUrl: photoUrl,
+    timestamp: timestamp,
+    method: method,
+    location: location,
+    notes: notes ?? this.notes,
+    tags: tags ?? this.tags,
+  );
+
   factory Connection.fromJson(Map<String, dynamic> json) {
     return Connection(
       connectionId: json['connectionId'],

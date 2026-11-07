@@ -48,7 +48,13 @@ Render reads `render.yaml`. Set `ROUTELLM_API_KEY` in the Render dashboard.
 
 ## Status
 
-- Working: profile switching, QR code of the active profile, AI bio rewrite.
-- Backend ready, no UI yet: badge text, follow-ups, notes summary.
-- Not built yet: NFC exchange, QR scanning, saved contacts (`models/connection.dart`),
-  sign-up and local storage, backend auth.
+UI follows the [Dekad_Kad Figma file](https://www.figma.com/design/CdFuuUGbUlhTwDgtSzVy9r/Dekad_Kad).
+Design tokens live in `frontend/lib/theme/tokens.dart`.
+
+- Working: profile switching, QR code of the active profile, QR scanning that
+  saves a connection, contacts list with search and filters, contact notes,
+  AI bio rewrite, AI notes summary, AI follow-up draft, AI event badge.
+- Placeholder data: profile and contacts are sample data held in memory
+  (`lib/data/`), so changes reset on restart.
+- Not built yet: NFC exchange (screen is ready, the session isn't), onboarding
+  and sign-up, local storage, backend auth.
