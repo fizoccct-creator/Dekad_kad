@@ -1,92 +1,117 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
+import '../config.dart';
+import '../models/user_profile.dart';
+
+class ApiException implements Exception {
+  final int? statusCode;
+  final String message;
+  ApiException(this.message, {this.statusCode});
+
+  @override
+  String toString() =>
+      statusCode == null ? message : '$message (HTTP $statusCode)';
+}
+
+class BadgeText {
+  final String title, message, cta, tone;
+  BadgeText.fromJson(Map<String, dynamic> j)
+    : title = j['title'],
+      message = j['message'],
+      cta = j['cta'],
+      tone = j['tone'];
+}
+
+class FollowUpSuggestion {
+  final String message, channel;
+  final int delayDays;
+  FollowUpSuggestion.fromJson(Map<String, dynamic> j)
+    : message = j['suggested_message'],
+      channel = j['send_channel'],
+      delayDays = j['delay_days'];
+}
+
+/// Client for the Dekad backend (see backend/main.py).
 class ApiService {
-  static const String baseUrl = 'https://your-render-app-url.onrender.com/api';
+  ApiService({http.Client? client, String? baseUrl})
+    : _client = client ?? http.Client(),
+      _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
-  // Rewrite bio endpoint
-  static Future<String> rewriteBio(String rawBio, String mode, int maxLength) async {
-    final url = Uri.parse('$baseUrl/bio-rewrite');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'raw_bio': rawBio,
-        'mode': mode,
-        'max_length': maxLength,
-      }),
-    );
+  final http.Client _client;
+  final String _baseUrl;
+  static const _timeout = Duration(seconds: 45);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['rewritten_bio'];
-    } else {
-      throw Exception('Failed to rewrite bio: ${response.statusCode}');
+  Future<Map<String, dynamic>> _post(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final http.Response res;
+    try {
+      res = await _client
+          .post(
+            Uri.parse('$_baseUrl/api/$path'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
+    } catch (e) {
+      throw ApiException('Could not reach the server: $e');
     }
+    if (res.statusCode != 200) {
+      String detail = 'Request failed';
+      try {
+        detail = (jsonDecode(res.body) as Map)['detail'].toString();
+      } catch (_) {}
+      throw ApiException(detail, statusCode: res.statusCode);
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // Generate badge text endpoint
-  static Future<Map<String, dynamic>> generateBadgeText(
+  Future<String> rewriteBio(
+    String rawBio,
+    ProfileMode mode, {
+    int maxLength = 200,
+  }) async {
+    final data = await _post('bio-rewrite', {
+      'raw_bio': rawBio,
+      'mode': mode.name,
+      'max_length': maxLength,
+    });
+    return data['rewritten_bio'] as String;
+  }
+
+  Future<BadgeText> generateBadgeText(
     String badgeId,
     String eventContext,
     String userRole,
   ) async {
-    final url = Uri.parse('$baseUrl/badge-text');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
+    return BadgeText.fromJson(
+      await _post('badge-text', {
         'badge_id': badgeId,
         'event_context': eventContext,
         'user_role': userRole,
       }),
     );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to generate badge text: ${response.statusCode}');
-    }
   }
 
-  // Suggest follow-up endpoint
-  static Future<Map<String, dynamic>> suggestFollowUp(
+  Future<FollowUpSuggestion> suggestFollowUp(
     String contactId,
     String previousConversation,
-    String lastMeetingDate,
+    DateTime lastMeeting,
   ) async {
-    final url = Uri.parse('$baseUrl/follow-up');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
+    return FollowUpSuggestion.fromJson(
+      await _post('follow-up', {
         'contact_id': contactId,
         'previous_conversation': previousConversation,
-        'last_meeting_date': lastMeetingDate,
+        'last_meeting_date': lastMeeting.toIso8601String().split('T').first,
       }),
     );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to suggest follow-up: ${response.statusCode}');
-    }
   }
 
-  // Summarize notes endpoint
-  static Future<List<String>> summarizeNotes(String notes) async {
-    final url = Uri.parse('$baseUrl/notes-summary');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'notes': notes}),
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return List<String>.from(data['summary_bullets']);
-    } else {
-      throw Exception('Failed to summarize notes: ${response.statusCode}');
-    }
+  Future<List<String>> summarizeNotes(String notes) async {
+    final data = await _post('notes-summary', {'notes': notes});
+    return List<String>.from(data['summary_bullets']);
   }
 }

@@ -1,35 +1,47 @@
 import 'dart:convert';
+
 import 'package:nfc_manager/nfc_manager.dart';
+
 import '../models/user_profile.dart';
 
+/// Builds and reads the payloads people swap when they connect.
+///
+/// Only the profile for the active mode is shared, so switching to
+/// "Professional" never leaks the personal profile (and vice versa).
 class ExchangeService {
-  // NFC exchange placeholder
-  static Future<void> exchangeViaNFC(UserProfile profile) async {
-    // Check if NFC is available
-    bool isAvailable = await NfcManager.instance.isAvailable();
-    if (!isAvailable) {
-      throw Exception('NFC is not available');
+  static const _payloadType = 'dekad.profile';
+  static const _payloadVersion = 1;
+
+  static String buildPayload(ProfileData profile, ProfileMode mode) =>
+      jsonEncode({
+        'type': _payloadType,
+        'v': _payloadVersion,
+        'mode': mode.name,
+        'profile': profile.toJson(),
+      });
+
+  /// Returns null if [payload] is not a Dekad profile.
+  static ProfileData? parsePayload(String payload) {
+    try {
+      final json = jsonDecode(payload) as Map<String, dynamic>;
+      if (json['type'] != _payloadType) return null;
+      return ProfileData.fromJson(json['profile'] as Map<String, dynamic>);
+    } catch (_) {
+      return null;
     }
-
-    // In a real implementation, you would:
-    // 1. Start NFC session
-    // 2. Wait for tag detection
-    // 3. Write profile data to NFC tag
-    // 4. Complete session
-    
-    // Placeholder implementation
-    print('NFC exchange initiated with profile: ${profile.professional.name}');
   }
 
-  // Generate QR payload from UserProfile
-  static String generateQRPayload(UserProfile profile) {
-    final jsonString = jsonEncode(profile.toJson());
-    return jsonString;
-  }
+  static Future<bool> isNfcAvailable() async =>
+      await NfcManager.instance.checkAvailability() == NfcAvailability.enabled;
 
-  // Parse QR payload to UserProfile
-  static UserProfile parseQRPayload(String payload) {
-    final jsonData = jsonDecode(payload);
-    return UserProfile.fromJson(jsonData);
+  /// TODO: start an NFC session and write/read [buildPayload] as an NDEF record.
+  static Future<void> exchangeViaNfc(
+    ProfileData profile,
+    ProfileMode mode,
+  ) async {
+    if (!await isNfcAvailable()) {
+      throw StateError('NFC is off or not supported on this device');
+    }
+    throw UnimplementedError('NFC exchange is not built yet');
   }
 }

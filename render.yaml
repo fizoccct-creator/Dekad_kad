@@ -1,9 +1,17 @@
 services:
   - type: web
     name: dekad-backend
-    env: python
-    buildCommand: "cd backend && apt-get update && apt-get install -y build-essential && pip install -r requirements.txt"
-    startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.12.8
+      - key: ROUTELLM_API_KEY
+        sync: false
+      - key: ROUTELLM_BASE_URL
+        value: https://routellm.abacus.ai/v1
+      - key: MODEL_NAME
+        value: gpt-4.1-mini
