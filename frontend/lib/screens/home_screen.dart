@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/user_profile.dart';
 import '../services/api_service.dart';
-import '../services/exchange_service.dart';
+import '../state/app_state.dart';
+import '../theme/tokens.dart';
+import '../widgets/dekad_widgets.dart';
+import 'nfc_share_screen.dart';
+import 'rewrite_bio_screen.dart';
+import 'share_qr_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.profile, this.api});
+  const HomeScreen({super.key, required this.profile, this.api, this.state});
 
   final UserProfile profile;
   final ApiService? api;
+
+  /// Shared state from the app shell. When null (e.g. in tests) the screen
+  /// keeps its own.
+  final AppState? state;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -17,126 +25,285 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final ApiService _api = widget.api ?? ApiService();
-  late UserProfile _profile = widget.profile;
-  ProfileMode _mode = ProfileMode.professional;
-  bool _rewriting = false;
+  late final AppState _state =
+      widget.state ?? AppState(profile: widget.profile);
 
-  ProfileData get _current => _profile.forMode(_mode);
-
-  void _snack(String text) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  @override
+  void dispose() {
+    if (widget.state == null) _state.dispose();
+    super.dispose();
   }
 
-  Future<void> _exchangeViaNfc() async {
-    try {
-      await ExchangeService.exchangeViaNfc(_current, _mode);
-      _snack('Profile exchanged');
-    } on UnimplementedError {
-      _snack('NFC exchange is coming soon. Use the QR code for now.');
-    } catch (e) {
-      _snack('NFC exchange failed: $e');
-    }
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
   }
 
-  void _showQrCode() {
-    final payload = ExchangeService.buildPayload(_current, _mode);
-    showDialog<void>(
+  Future<void> _editBio() async {
+    final mode = _state.mode;
+    final controller = TextEditingController(text: _state.current.bio);
+    final bio = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Your ${_mode.name} QR code'),
-        content: SizedBox.square(
-          dimension: 240,
-          child: QrImageView(data: payload, backgroundColor: Colors.white),
+      isScrollControlled: true,
+      backgroundColor: DekadColors.canvas,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          24 + MediaQuery.viewInsetsOf(context).bottom,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Edit ${mode.name} bio', style: DekadText.h2),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              minLines: 3,
+              maxLines: 6,
+              maxLength: 300,
+              style: DekadText.body,
+              decoration: const InputDecoration(labelText: 'Bio'),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: PillButton(
+                label: 'Save',
+                icon: Icons.check,
+                accent: DekadColors.accent(mode),
+                onPressed: () =>
+                    Navigator.of(context).pop(controller.text.trim()),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+    controller.dispose();
+    if (bio != null && bio.isNotEmpty) _state.updateBio(mode, bio);
   }
 
-  Future<void> _rewriteBio() async {
-    setState(() => _rewriting = true);
-    try {
-      final bio = await _api.rewriteBio(_current.bio, _mode);
-      if (!mounted) return;
-      setState(() {
-        final updated = _current.copyWith(bio: bio);
-        _profile = _mode == ProfileMode.professional
-            ? UserProfile(professional: updated, personal: _profile.personal)
-            : UserProfile(
-                professional: _profile.professional,
-                personal: updated,
-              );
-      });
-      _snack('Bio rewritten');
-    } catch (e) {
-      _snack('Could not rewrite bio: $e');
-    } finally {
-      if (mounted) setState(() => _rewriting = false);
-    }
-  }
+  void _push(Widget screen) => Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => screen));
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Dekad')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          SegmentedButton<ProfileMode>(
-            segments: const [
-              ButtonSegment(
-                value: ProfileMode.professional,
-                label: Text('Professional'),
-                icon: Icon(Icons.work_outline),
-              ),
-              ButtonSegment(
-                value: ProfileMode.personal,
-                label: Text('Personal'),
-                icon: Icon(Icons.person_outline),
-              ),
-            ],
-            selected: {_mode},
-            onSelectionChanged: (s) => setState(() => _mode = s.first),
+    return ListenableBuilder(
+      listenable: _state,
+      builder: (context, _) {
+        final mode = _state.mode;
+        final p = _state.current;
+        final accent = DekadColors.accent(mode);
+        final firstName = _state.profile.professional.name.split(' ').first;
+        return Scaffold(
+          body: SafeArea(
+            bottom: false,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+              children: [
+                Text(_greeting, style: DekadText.caption),
+                const SizedBox(height: 2),
+                Text('Hi, $firstName', style: DekadText.h1),
+                const SizedBox(height: 16),
+                ModeToggle(mode: mode, onChanged: (m) => _state.mode = m),
+                const SizedBox(height: 16),
+                _ProfileCard(
+                  profile: p,
+                  mode: mode,
+                  onEdit: _editBio,
+                  onPolish: () =>
+                      _push(RewriteBioScreen(state: _state, api: _api)),
+                ),
+                const SizedBox(height: 20),
+                const Text('Share this profile', style: DekadText.h2),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: PillButton(
+                        label: 'Show QR',
+                        icon: Icons.qr_code_2,
+                        accent: accent,
+                        onPressed: () =>
+                            _push(ShareQrScreen(profile: p, mode: mode)),
+                      ),
+                    ),
+                    if (_state.nfcEnabled) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: PillButton(
+                          label: 'Tap (NFC)',
+                          icon: Icons.nfc,
+                          variant: PillVariant.secondary,
+                          onPressed: () =>
+                              _push(NfcShareScreen(profile: p, mode: mode)),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Only your ${mode.name} profile is shared.',
+                      style: DekadText.caption,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 24),
-          Text(_current.name, style: text.headlineMedium),
-          Text(_current.role, style: text.titleMedium),
-          if (_current.company != null) Text(_current.company!),
-          const SizedBox(height: 16),
-          Text(_current.bio, style: text.bodyMedium),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
+        );
+      },
+    );
+  }
+}
+
+String linkLabel(String url) {
+  final host = Uri.tryParse(url)?.host.replaceFirst('www.', '') ?? url;
+  return switch (host) {
+    'linkedin.com' => 'LinkedIn',
+    'twitter.com' || 'x.com' => 'X',
+    'instagram.com' => 'Instagram',
+    'github.com' => 'GitHub',
+    _ => host,
+  };
+}
+
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({
+    required this.profile,
+    required this.mode,
+    required this.onEdit,
+    required this.onPolish,
+  });
+
+  final ProfileData profile;
+  final ProfileMode mode;
+  final VoidCallback onEdit;
+  final VoidCallback onPolish;
+
+  @override
+  Widget build(BuildContext context) {
+    return DekadCard(
+      radius: DekadRadius.card,
+      padding: const EdgeInsets.all(20),
+      elevated: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FilledButton.icon(
-                onPressed: _showQrCode,
-                icon: const Icon(Icons.qr_code),
-                label: const Text('Show QR code'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _exchangeViaNfc,
-                icon: const Icon(Icons.nfc),
-                label: const Text('Exchange via NFC'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _rewriting ? null : _rewriteBio,
-                icon: _rewriting
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.auto_awesome),
-                label: const Text('Rewrite bio'),
+              DekadAvatar(name: profile.name, mode: mode),
+              const Spacer(),
+              Material(
+                color: DekadColors.canvas,
+                shape: const StadiumBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onEdit,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 14, 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.edit_outlined,
+                          size: 16,
+                          color: DekadColors.ink600,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Edit',
+                          style: DekadText.label.copyWith(
+                            color: DekadColors.ink600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          Overline('${mode.name} profile', color: DekadColors.accent(mode)),
+          const SizedBox(height: 4),
+          Text(profile.name, style: DekadText.h1),
+          Text(profile.role, style: DekadText.bodyStrong),
+          if (profile.company != null)
+            Text(
+              profile.company!,
+              style: DekadText.label.copyWith(color: DekadColors.ink400),
+            ),
+          const SizedBox(height: 16),
+          Text(
+            profile.bio,
+            style: DekadText.body.copyWith(color: DekadColors.ink600),
+          ),
+          if (profile.links.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final l in profile.links) TagChip(label: linkLabel(l)),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
+          Material(
+            color: DekadColors.aiSoft,
+            borderRadius: BorderRadius.circular(DekadRadius.md),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onPolish,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome,
+                      size: 20,
+                      color: DekadColors.ai,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Polish my bio with AI',
+                        style: DekadText.label.copyWith(color: DekadColors.ai),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: DekadColors.ai,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
